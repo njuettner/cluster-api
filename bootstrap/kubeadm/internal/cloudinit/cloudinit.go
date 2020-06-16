@@ -30,8 +30,7 @@ const (
 	retriableJoinScriptName        = "/usr/local/bin/kubeadm-bootstrap-script"
 	retriableJoinScriptOwner       = "root"
 	retriableJoinScriptPermissions = "0755"
-	cloudConfigHeader              = `## template: jinja
-#cloud-config
+	cloudConfigHeader              = `#cloud-config
 `
 )
 
