@@ -408,7 +408,8 @@ set-manifest-image:
 ## Release
 ## --------------------------------------
 
-RELEASE_TAG := $(shell git describe --abbrev=0 2>/dev/null)
+#RELEASE_TAG := $(shell git describe --abbrev=0 2>/dev/null)
+RELEASE_TAG := $(shell git describe 2>/dev/null)
 RELEASE_DIR := out
 
 $(RELEASE_DIR):
