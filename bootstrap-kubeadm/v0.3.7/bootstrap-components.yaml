@@ -3914,7 +3914,7 @@ spec:
         - --enable-leader-election
         command:
         - /manager
-        image: quay.io/dongsupark/kubeadm-bootstrap-controller:v0.3.6
+        image: quay.io/dongsupark/kubeadm-bootstrap-controller:v0.3.7
         imagePullPolicy: IfNotPresent
         name: manager
       terminationGracePeriodSeconds: 10
@@ -3958,7 +3958,7 @@ spec:
         - --webhook-port=9443
         command:
         - /manager
-        image: quay.io/dongsupark/kubeadm-bootstrap-controller:v0.3.6
+        image: quay.io/dongsupark/kubeadm-bootstrap-controller:v0.3.7
         imagePullPolicy: IfNotPresent
         name: manager
         ports:

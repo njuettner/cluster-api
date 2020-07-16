@@ -86,7 +86,7 @@ func (p *providersClient) defaults() []Provider {
 		// cluster API core provider
 		&provider{
 			name:         ClusterAPIProviderName,
-			url:          "file:///home/dpark/go/src/github.com/kubernetes-sigs/cluster-api/cluster-api/v0.3.6/core-components.yaml",
+			url:          "file:///home/dpark/go/src/github.com/kubernetes-sigs/cluster-api/cluster-api/v0.3.7/core-components.yaml",
 			providerType: clusterctlv1.CoreProviderType,
 		},
 
@@ -125,7 +125,7 @@ func (p *providersClient) defaults() []Provider {
 		// Bootstrap providers
 		&provider{
 			name:         KubeadmBootstrapProviderName,
-			url:          "file:///home/dpark/go/src/github.com/kubernetes-sigs/cluster-api/bootstrap-kubeadm/v0.3.6/bootstrap-components.yaml",
+			url:          "file:///home/dpark/go/src/github.com/kubernetes-sigs/cluster-api/bootstrap-kubeadm/v0.3.7/bootstrap-components.yaml",
 			providerType: clusterctlv1.BootstrapProviderType,
 		},
 		&provider{
@@ -137,7 +137,7 @@ func (p *providersClient) defaults() []Provider {
 		// ControlPlane providers
 		&provider{
 			name:         KubeadmControlPlaneProviderName,
-			url:          "file:///home/dpark/go/src/github.com/kubernetes-sigs/cluster-api/control-plane-kubeadm/v0.3.6/control-plane-components.yaml",
+			url:          "file:///home/dpark/go/src/github.com/kubernetes-sigs/cluster-api/control-plane-kubeadm/v0.3.7/control-plane-components.yaml",
 			providerType: clusterctlv1.ControlPlaneProviderType,
 		},
 		&provider{
