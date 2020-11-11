@@ -4,20 +4,24 @@ go 1.15
 
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
+	github.com/ajeddeloh/go-json v0.0.0-20200220154158-5ae607161559 // indirect
+	github.com/aws/aws-sdk-go v1.33.11
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coredns/corefile-migration v1.0.11
+	github.com/coreos/ignition v0.35.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/drone/envsubst v1.0.3-0.20200709223903-efdb65b94e5a
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/go-logr/logr v0.3.0
 	github.com/gobuffalo/flect v0.2.2
+	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/gofuzz v1.2.0
-	github.com/google/uuid v1.1.2 // indirect
+	github.com/google/uuid v1.1.2
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
@@ -26,9 +30,13 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.2
+	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200819165624-17cef6e3e9d5
+	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	google.golang.org/grpc v1.27.0
+	google.golang.org/appengine v1.6.6 // indirect
+	google.golang.org/grpc v1.27.1
 	k8s.io/api v0.19.2
 	k8s.io/apiextensions-apiserver v0.19.2
 	k8s.io/apimachinery v0.19.2
@@ -42,3 +50,5 @@ require (
 	sigs.k8s.io/kind v0.9.0
 	sigs.k8s.io/yaml v1.2.0
 )
+
+replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
