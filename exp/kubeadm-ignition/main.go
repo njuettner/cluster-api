@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"math/rand"
 	"net/http"
@@ -30,10 +31,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"k8s.io/klog/klogr"
-	clusterv1alpha3 "sigs.k8s.io/cluster-api/api/v1alpha3"
+	clusterv1alpha4 "sigs.k8s.io/cluster-api/api/v1alpha4"
 	"sigs.k8s.io/cluster-api/cmd/version"
-	expv1alpha3 "sigs.k8s.io/cluster-api/exp/api/v1alpha3"
-	kubeadmbootstrapv1alpha3 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha3"
+	expv1alpha4 "sigs.k8s.io/cluster-api/exp/api/v1alpha4"
+	kubeadmbootstrapv1alpha4 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha4"
 	kubeadmbootstrapcontrollers "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/controllers"
 	ignition "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/internal/ignition"
 	"sigs.k8s.io/cluster-api/feature"
@@ -53,9 +54,9 @@ func init() {
 	klog.InitFlags(nil)
 
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = clusterv1alpha3.AddToScheme(scheme)
-	_ = expv1alpha3.AddToScheme(scheme)
-	_ = kubeadmbootstrapv1alpha3.AddToScheme(scheme)
+	_ = clusterv1alpha4.AddToScheme(scheme)
+	_ = expv1alpha4.AddToScheme(scheme)
+	_ = kubeadmbootstrapv1alpha4.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -164,8 +165,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Setup the context that's going to be used in controllers and for the manager.
+	ctx := ctrl.SetupSignalHandler()
+
 	setupWebhooks(mgr)
-	setupReconcilers(mgr, templateBackend)
+	setupReconcilers(ctx, mgr, templateBackend)
 
 	// +kubebuilder:scaffold:builder
 	setupLog.Info("starting manager", "version", version.Get().String())
@@ -175,7 +179,7 @@ func main() {
 	}
 }
 
-func setupReconcilers(mgr ctrl.Manager, templateBackend ignition.TemplateBackend) {
+func setupReconcilers(ctx context.Context, mgr ctrl.Manager, templateBackend ignition.TemplateBackend) {
 	if webhookPort != 0 {
 		return
 	}
@@ -184,7 +188,7 @@ func setupReconcilers(mgr ctrl.Manager, templateBackend ignition.TemplateBackend
 		Client:          mgr.GetClient(),
 		Log:             ctrl.Log.WithName("controllers").WithName("KubeadmIgnitionConfigIgnition"),
 		IgnitionFactory: ignition.NewFactory(templateBackend),
-	}).SetupWithManager(mgr, concurrency(kubeadmConfigConcurrency)); err != nil {
+	}).SetupWithManager(ctx, mgr, concurrency(kubeadmConfigConcurrency)); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeadmIgnitionConfigIgnition")
 		os.Exit(1)
 	}
@@ -195,19 +199,19 @@ func setupWebhooks(mgr ctrl.Manager) {
 		return
 	}
 
-	if err := (&kubeadmbootstrapv1alpha3.KubeadmIgnitionConfig{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&kubeadmbootstrapv1alpha4.KubeadmIgnitionConfig{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "KubeadmIgnitionConfig")
 		os.Exit(1)
 	}
-	if err := (&kubeadmbootstrapv1alpha3.KubeadmIgnitionConfigList{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&kubeadmbootstrapv1alpha4.KubeadmIgnitionConfigList{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "KubeadmIgnitionConfigList")
 		os.Exit(1)
 	}
-	if err := (&kubeadmbootstrapv1alpha3.KubeadmIgnitionConfigTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&kubeadmbootstrapv1alpha4.KubeadmIgnitionConfigTemplate{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "KubeadmIgnitionConfigTemplate")
 		os.Exit(1)
 	}
-	if err := (&kubeadmbootstrapv1alpha3.KubeadmIgnitionConfigTemplateList{}).SetupWebhookWithManager(mgr); err != nil {
+	if err := (&kubeadmbootstrapv1alpha4.KubeadmIgnitionConfigTemplateList{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "KubeadmIgnitionConfigTemplateList")
 		os.Exit(1)
 	}
@@ -227,9 +231,8 @@ func newClientFunc(cache cache.Cache, config *rest.Config, options client.Option
 		return nil, err
 	}
 
-	return &client.DelegatingClient{
-		Reader:       cache,
-		Writer:       c,
-		StatusClient: c,
-	}, nil
+	return client.NewDelegatingClient(client.NewDelegatingClientInput{
+		CacheReader: c,
+		Client:      c,
+	}), nil
 }

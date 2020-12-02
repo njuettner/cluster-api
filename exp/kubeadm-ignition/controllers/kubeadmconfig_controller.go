@@ -32,19 +32,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/pointer"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
-	bootstrapv1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1alpha3"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha4"
+	bootstrapv1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1alpha4"
 	kubeadmv1beta1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/types/v1beta1"
 	bsutil "sigs.k8s.io/cluster-api/bootstrap/util"
 	"sigs.k8s.io/cluster-api/controllers/remote"
 	capierrors "sigs.k8s.io/cluster-api/errors"
-	expv1 "sigs.k8s.io/cluster-api/exp/api/v1alpha3"
-	kubeadmignitionv1alpha3 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha3"
+	expv1 "sigs.k8s.io/cluster-api/exp/api/v1alpha4"
+	kubeadmignitionv1alpha4 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha4"
 	"sigs.k8s.io/cluster-api/exp/kubeadm-ignition/internal/locking"
 	kubeadmignitionv1beta1 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/types/v1beta1"
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
+	"sigs.k8s.io/cluster-api/util/predicates"
 	"sigs.k8s.io/cluster-api/util/secret"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,61 +78,59 @@ type KubeadmIgnitionConfigReconciler struct {
 
 type Scope struct {
 	logr.Logger
-	Config      *kubeadmignitionv1alpha3.KubeadmIgnitionConfig
+	Config      *kubeadmignitionv1alpha4.KubeadmIgnitionConfig
 	ConfigOwner *bsutil.ConfigOwner
 	Cluster     *clusterv1.Cluster
 }
 
 // SetupWithManager sets up the reconciler with the Manager.
-func (r *KubeadmIgnitionConfigReconciler) SetupWithManager(mgr ctrl.Manager, option controller.Options) error {
+func (r *KubeadmIgnitionConfigReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, option controller.Options) error {
 	if r.KubeadmInitLock == nil {
-		r.KubeadmInitLock = locking.NewControlPlaneInitMutex(ctrl.Log.WithName("init-locker"), mgr.GetClient())
+		r.KubeadmInitLock = locking.NewControlPlaneInitMutex(ctrl.LoggerFrom(ctx).WithName("init-locker"), mgr.GetClient())
 	}
 	if r.remoteClientGetter == nil {
 		r.remoteClientGetter = remote.NewClusterClient
 	}
 
-	r.scheme = mgr.GetScheme()
-
-	builder := ctrl.NewControllerManagedBy(mgr).
-		For(&kubeadmignitionv1alpha3.KubeadmIgnitionConfig{}).
+	b := ctrl.NewControllerManagedBy(mgr).
+		For(&bootstrapv1.KubeadmConfig{}).
 		WithOptions(option).
+		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
 		Watches(
 			&source.Kind{Type: &clusterv1.Machine{}},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(r.MachineToBootstrapMapFunc),
-			},
-		).
-		Watches(
-			&source.Kind{Type: &clusterv1.Cluster{}},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(r.ClusterToKubeadmIgnitionConfigs),
-			},
+			handler.EnqueueRequestsFromMapFunc(r.MachineToBootstrapMapFunc),
 		)
 
 	if feature.Gates.Enabled(feature.MachinePool) {
-		builder = builder.Watches(
+		b = b.Watches(
 			&source.Kind{Type: &expv1.MachinePool{}},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(r.MachinePoolToBootstrapMapFunc),
-			},
+			handler.EnqueueRequestsFromMapFunc(r.MachinePoolToBootstrapMapFunc),
 		)
 	}
 
-	if err := builder.Complete(r); err != nil {
+	c, err := b.Build(r)
+	if err != nil {
 		return errors.Wrap(err, "failed setting up with a controller manager")
+	}
+
+	err = c.Watch(
+		&source.Kind{Type: &clusterv1.Cluster{}},
+		handler.EnqueueRequestsFromMapFunc(r.ClusterToKubeadmIgnitionConfigs),
+		predicates.ClusterUnpausedAndInfrastructureReady(ctrl.LoggerFrom(ctx)),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed adding Watch for Clusters to controller manager")
 	}
 
 	return nil
 }
 
 // Reconcile handles KubeadmIgnitionConfig events.
-func (r *KubeadmIgnitionConfigReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, rerr error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("kubeadmconfig", req.NamespacedName)
+func (r *KubeadmIgnitionConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, rerr error) {
+	log := ctrl.LoggerFrom(ctx)
 
 	// Lookup the kubeadm config
-	config := &kubeadmignitionv1alpha3.KubeadmIgnitionConfig{}
+	config := &kubeadmignitionv1alpha4.KubeadmIgnitionConfig{}
 	if err := r.Client.Get(ctx, req.NamespacedName, config); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -209,7 +208,7 @@ func (r *KubeadmIgnitionConfigReconciler) Reconcile(req ctrl.Request) (_ ctrl.Re
 
 			token := config.Spec.JoinConfiguration.Discovery.BootstrapToken.Token
 
-			remoteClient, err := r.remoteClientGetter(ctx, r.Client, util.ObjectKey(cluster), r.scheme)
+			remoteClient, err := r.remoteClientGetter(ctx, r.Client, util.ObjectKey(cluster))
 			if err != nil {
 				log.Error(err, "error creating remote cluster client")
 				return ctrl.Result{}, err
@@ -530,13 +529,12 @@ func (r *KubeadmIgnitionConfigReconciler) joinControlplane(ctx context.Context, 
 
 // ClusterToKubeadmIgnitionConfigs is a handler.ToRequestsFunc to be used to enqeue
 // requests for reconciliation of KubeadmIgnitionConfigs.
-func (r *KubeadmIgnitionConfigReconciler) ClusterToKubeadmIgnitionConfigs(o handler.MapObject) []ctrl.Request {
+func (r *KubeadmIgnitionConfigReconciler) ClusterToKubeadmIgnitionConfigs(o client.Object) []ctrl.Request {
 	result := []ctrl.Request{}
 
-	c, ok := o.Object.(*clusterv1.Cluster)
+	c, ok := o.(*clusterv1.Cluster)
 	if !ok {
-		r.Log.Error(errors.Errorf("expected a Cluster but got a %T", o.Object), "failed to get Machine for Cluster")
-		return nil
+		panic(fmt.Sprintf("Expected a Cluster but got a %T", o))
 	}
 
 	selectors := []client.ListOption{
@@ -565,13 +563,13 @@ func (r *KubeadmIgnitionConfigReconciler) ClusterToKubeadmIgnitionConfigs(o hand
 
 // MachineToBootstrapMapFunc is a handler.ToRequestsFunc to be used to enqeue
 // request for reconciliation of KubeadmIgnitionConfig.
-func (r *KubeadmIgnitionConfigReconciler) MachineToBootstrapMapFunc(o handler.MapObject) []ctrl.Request {
-	result := []ctrl.Request{}
-
-	m, ok := o.Object.(*clusterv1.Machine)
+func (r *KubeadmIgnitionConfigReconciler) MachineToBootstrapMapFunc(o client.Object) []ctrl.Request {
+	m, ok := o.(*clusterv1.Machine)
 	if !ok {
-		return nil
+		panic(fmt.Sprintf("Expected a Machine but got a %T", o))
 	}
+
+	result := []ctrl.Request{}
 	if m.Spec.Bootstrap.ConfigRef != nil && m.Spec.Bootstrap.ConfigRef.GroupVersionKind() == bootstrapv1.GroupVersion.WithKind("KubeadmIgnitionConfig") {
 		name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.Bootstrap.ConfigRef.Name}
 		result = append(result, ctrl.Request{NamespacedName: name})
@@ -581,13 +579,13 @@ func (r *KubeadmIgnitionConfigReconciler) MachineToBootstrapMapFunc(o handler.Ma
 
 // MachinePoolToBootstrapMapFunc is a handler.ToRequestsFunc to be used to enqueue
 // request for reconciliation of KubeadmIgnitionConfig.
-func (r *KubeadmIgnitionConfigReconciler) MachinePoolToBootstrapMapFunc(o handler.MapObject) []ctrl.Request {
-	result := []ctrl.Request{}
-
-	m, ok := o.Object.(*expv1.MachinePool)
+func (r *KubeadmIgnitionConfigReconciler) MachinePoolToBootstrapMapFunc(o client.Object) []ctrl.Request {
+	m, ok := o.(*expv1.MachinePool)
 	if !ok {
-		return nil
+		panic(fmt.Sprintf("Expected a MachinePool but got a %T", o))
 	}
+
+	result := []ctrl.Request{}
 	configRef := m.Spec.Template.Spec.Bootstrap.ConfigRef
 	if configRef != nil && configRef.GroupVersionKind().GroupKind() == bootstrapv1.GroupVersion.WithKind("KubeadmIgnitionConfig").GroupKind() {
 		name := client.ObjectKey{Namespace: m.Namespace, Name: configRef.Name}
@@ -600,7 +598,7 @@ func (r *KubeadmIgnitionConfigReconciler) MachinePoolToBootstrapMapFunc(o handle
 // The implementation func respect user provided discovery configurations, but in case some of them are missing, a valid BootstrapToken object
 // is automatically injected into config.JoinConfiguration.Discovery.
 // This allows to simplify configuration UX, by providing the option to delegate to CABPK the configuration of kubeadm join discovery.
-func (r *KubeadmIgnitionConfigReconciler) reconcileDiscovery(ctx context.Context, cluster *clusterv1.Cluster, config *kubeadmignitionv1alpha3.KubeadmIgnitionConfig, certificates secret.Certificates) error {
+func (r *KubeadmIgnitionConfigReconciler) reconcileDiscovery(ctx context.Context, cluster *clusterv1.Cluster, config *kubeadmignitionv1alpha4.KubeadmIgnitionConfig, certificates secret.Certificates) error {
 	log := r.Log.WithValues("kubeadmconfig", fmt.Sprintf("%s/%s", config.Namespace, config.Name))
 
 	// if config already contains a file discovery configuration, respect it without further validations
@@ -637,7 +635,7 @@ func (r *KubeadmIgnitionConfigReconciler) reconcileDiscovery(ctx context.Context
 
 	// if BootstrapToken already contains a token, respect it; otherwise create a new bootstrap token for the node to join
 	if config.Spec.JoinConfiguration.Discovery.BootstrapToken.Token == "" {
-		remoteClient, err := r.remoteClientGetter(ctx, r.Client, util.ObjectKey(cluster), r.scheme)
+		remoteClient, err := r.remoteClientGetter(ctx, r.Client, util.ObjectKey(cluster))
 		if err != nil {
 			return err
 		}
@@ -662,7 +660,7 @@ func (r *KubeadmIgnitionConfigReconciler) reconcileDiscovery(ctx context.Context
 
 // reconcileTopLevelObjectSettings injects into config.ClusterConfiguration values from top level objects like cluster and machine.
 // The implementation func respect user provided config values, but in case some of them are missing, values from top level objects are used.
-func (r *KubeadmIgnitionConfigReconciler) reconcileTopLevelObjectSettings(cluster *clusterv1.Cluster, machine *clusterv1.Machine, config *kubeadmignitionv1alpha3.KubeadmIgnitionConfig) {
+func (r *KubeadmIgnitionConfigReconciler) reconcileTopLevelObjectSettings(cluster *clusterv1.Cluster, machine *clusterv1.Machine, config *kubeadmignitionv1alpha4.KubeadmIgnitionConfig) {
 	log := r.Log.WithValues("kubeadmconfig", fmt.Sprintf("%s/%s", config.Namespace, config.Name))
 
 	// If there is no ControlPlaneEndpoint defined in ClusterConfiguration but

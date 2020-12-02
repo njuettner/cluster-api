@@ -17,7 +17,7 @@ limitations under the License.
 package ignition
 
 import (
-	"sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1alpha3"
+	"sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha4"
 	kubeadmv1beta1 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/types/v1beta1"
 )
 
@@ -27,7 +27,7 @@ const (
 )
 
 type Node struct {
-	Files    []v1alpha3.File
+	Files    []v1alpha4.File
 	Services []kubeadmv1beta1.ServiceUnit
 	Version  string
 }

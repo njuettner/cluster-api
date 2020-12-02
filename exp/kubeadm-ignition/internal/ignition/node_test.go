@@ -20,7 +20,7 @@ import (
 	types "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/types/v1beta1"
 	"testing"
 
-	"sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha3"
+	"sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha4"
 )
 
 func TestToUserData(t *testing.T) {
@@ -41,7 +41,7 @@ var testCases = []struct {
 	{
 		expected: `{"ignition":{"config":{},"security":{"tls":{}},"timeouts":{},"version":"2.2.0"},"networkd":{},"passwd":{},"storage":{"files":[{"filesystem":"root","overwrite":true,"path":"/etc/docker/daemon.json","contents":{"source":"data:,%7B%22bridge%22%3A%22none%22%2C%22log-driver%22%3A%20%22json-file%22%2C%22log-opts%22%3A%20%7B%22max-size%22%3A%20%2210m%22%2C%22max-file%22%3A%20%2210%22%7D%2C%22live-restore%22%3A%20true%2C%22max-concurrent-downloads%22%3A10%7D%0A","verification":{}},"mode":420}]},"systemd":{}}`,
 		input: Node{
-			Files: []v1alpha3.File{
+			Files: []v1alpha4.File{
 				{
 					Path:        "/etc/docker/daemon.json",
 					Permissions: "0644",

@@ -26,7 +26,7 @@ type FakeBackend struct {
 func (factory *FakeBackend) getIgnitionConfigTemplate(node *Node) (*ignTypes.Config, error) {
 	out := &ignTypes.Config{
 		Ignition: ignTypes.Ignition{
-			Version: IngitionSchemaVersion,
+			Version: IgnitionSchemaVersion,
 		},
 	}
 	return out, nil

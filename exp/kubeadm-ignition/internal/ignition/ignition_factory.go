@@ -25,7 +25,7 @@ import (
 	"github.com/vincent-petithory/dataurl"
 	"net/url"
 	"reflect"
-	"sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1alpha3"
+	"sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha4"
 	kubeadmv1beta1 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/types/v1beta1"
 	"strconv"
 )
@@ -74,7 +74,7 @@ func (factory *Factory) BuildIgnitionConfig(out *ignTypes.Config, node *Node) (*
 	return out, nil
 }
 
-func getStorage(files []v1alpha3.File) (out ignTypes.Storage, err error) {
+func getStorage(files []v1alpha4.File) (out ignTypes.Storage, err error) {
 	for _, file := range files {
 		newFile := ignTypes.File{
 			Node: ignTypes.Node{

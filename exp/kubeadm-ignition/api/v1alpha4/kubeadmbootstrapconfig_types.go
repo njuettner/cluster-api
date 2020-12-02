@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha3
+package v1alpha4
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha4"
 	kubeadmv1beta1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/types/v1beta1"
 )
 
@@ -108,7 +108,7 @@ type KubeadmIgnitionConfigStatus struct {
 
 	// BootstrapData will be a cloud-init script for now.
 	//
-	// Deprecated: This field has been deprecated in v1alpha3 and
+	// Deprecated: This field has been deprecated in v1alpha4 and
 	// will be removed in a future version. Switch to DataSecretName.
 	//
 	// +optional

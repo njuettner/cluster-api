@@ -33,18 +33,17 @@ import (
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	"k8s.io/klog/klogr"
 	"k8s.io/utils/pointer"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha4"
+	kubeadmv1beta1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/types/v1beta1"
 	fakeremote "sigs.k8s.io/cluster-api/controllers/remote/fake"
-	expv1 "sigs.k8s.io/cluster-api/exp/api/v1alpha3"
-	bootstrapv1 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha3"
-	kubeadmv1beta1 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/types/v1beta1"
+	expv1 "sigs.k8s.io/cluster-api/exp/api/v1alpha4"
+	bootstrapv1 "sigs.k8s.io/cluster-api/exp/kubeadm-ignition/api/v1alpha4"
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/secret"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -71,8 +70,8 @@ func TestKubeadmIgnitionConfigReconciler_MachineToBootstrapMapFuncReturn(t *test
 	g := NewWithT(t)
 
 	cluster := newCluster("my-cluster")
-	objs := []runtime.Object{cluster}
-	machineObjs := []runtime.Object{}
+	objs := []client.Object{cluster}
+	machineObjs := []client.Object{}
 	var expectedConfigName string
 	for i := 0; i < 3; i++ {
 		m := newMachine(cluster, fmt.Sprintf("my-machine-%d", i))
@@ -92,9 +91,7 @@ func TestKubeadmIgnitionConfigReconciler_MachineToBootstrapMapFuncReturn(t *test
 		Client: fakeClient,
 	}
 	for i := 0; i < 3; i++ {
-		o := handler.MapObject{
-			Object: machineObjs[i],
-		}
+		o := machineObjs[i]
 		configs := reconciler.MachineToBootstrapMapFunc(o)
 		if i == 1 {
 			g.Expect(configs[0].Name).To(Equal(expectedConfigName))
@@ -111,7 +108,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnEarlyIfKubeadmIgnitionC
 	config := newKubeadmIgnitionConfig(nil, "cfg")
 	config.Status.Ready = true
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		config,
 	}
 	myclient := fake.NewFakeClientWithScheme(setupScheme(), objects...)
@@ -127,7 +124,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnEarlyIfKubeadmIgnitionC
 			Namespace: "cfg",
 		},
 	}
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -140,7 +137,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnErrorIfReferencedMachin
 	machine := newMachine(nil, "machine")
 	config := newKubeadmIgnitionConfig(machine, "cfg")
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		// intentionally omitting machine
 		config,
 	}
@@ -157,7 +154,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnErrorIfReferencedMachin
 			Name:      "cfg",
 		},
 	}
-	_, err := k.Reconcile(request)
+	_, err := k.Reconcile(ctx, request)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -169,7 +166,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnEarlyIfMachineHasDataSe
 	machine.Spec.Bootstrap.DataSecretName = pointer.StringPtr("something")
 
 	config := newKubeadmIgnitionConfig(machine, "cfg")
-	objects := []runtime.Object{
+	objects := []client.Object{
 		machine,
 		config,
 	}
@@ -186,7 +183,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnEarlyIfMachineHasDataSe
 			Name:      "cfg",
 		},
 	}
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -202,7 +199,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_MigrateToSecret(t *testing.T)
 	config := newKubeadmIgnitionConfig(machine, "cfg")
 	config.Status.Ready = true
 	config.Status.BootstrapData = []byte("test")
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		machine,
 		config,
@@ -221,7 +218,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_MigrateToSecret(t *testing.T)
 		},
 	}
 
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -249,7 +246,7 @@ func TestKubeadmIgnitionConfigReconciler_ReturnEarlyIfClusterInfraNotReady(t *te
 		InfrastructureReady: false,
 	}
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		machine,
 		config,
@@ -269,7 +266,7 @@ func TestKubeadmIgnitionConfigReconciler_ReturnEarlyIfClusterInfraNotReady(t *te
 	}
 
 	expectedResult := reconcile.Result{}
-	actualResult, actualError := k.Reconcile(request)
+	actualResult, actualError := k.Reconcile(ctx, request)
 	g.Expect(actualResult).To(Equal(expectedResult))
 	g.Expect(actualError).NotTo(HaveOccurred())
 }
@@ -281,7 +278,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnEarlyIfMachineHasNoClus
 	machine := newMachine(nil, "machine") // Machine without a cluster
 	config := newKubeadmIgnitionConfig(machine, "cfg")
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		machine,
 		config,
 	}
@@ -298,7 +295,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnEarlyIfMachineHasNoClus
 			Name:      "cfg",
 		},
 	}
-	_, err := k.Reconcile(request)
+	_, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -309,7 +306,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnNilIfMachineDoesNotHave
 	machine := newMachine(nil, "machine") // intentionally omitting cluster
 	config := newKubeadmIgnitionConfig(machine, "cfg")
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		machine,
 		config,
 	}
@@ -326,7 +323,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnNilIfMachineDoesNotHave
 			Name:      "cfg",
 		},
 	}
-	_, err := k.Reconcile(request)
+	_, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -338,7 +335,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnNilIfAssociatedClusterI
 	machine := newMachine(cluster, "machine")
 	config := newKubeadmIgnitionConfig(machine, "cfg")
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		// intentionally omitting cluster
 		machine,
 		config,
@@ -356,7 +353,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ReturnNilIfAssociatedClusterI
 			Name:      "cfg",
 		},
 	}
-	_, err := k.Reconcile(request)
+	_, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -376,7 +373,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_RequeueJoiningNodesIfControlP
 	testcases := []struct {
 		name    string
 		request ctrl.Request
-		objects []runtime.Object
+		objects []client.Object
 	}{
 		{
 			name: "requeue worker when control plane is not yet initialiezd",
@@ -386,7 +383,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_RequeueJoiningNodesIfControlP
 					Name:      workerJoinConfig.Name,
 				},
 			},
-			objects: []runtime.Object{
+			objects: []client.Object{
 				cluster,
 				workerMachine,
 				workerJoinConfig,
@@ -400,7 +397,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_RequeueJoiningNodesIfControlP
 					Name:      controlPlaneJoinConfig.Name,
 				},
 			},
-			objects: []runtime.Object{
+			objects: []client.Object{
 				cluster,
 				controlPlaneJoinMachine,
 				controlPlaneJoinConfig,
@@ -417,7 +414,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_RequeueJoiningNodesIfControlP
 				KubeadmInitLock: &myInitLocker{},
 			}
 
-			result, err := k.Reconcile(tc.request)
+			result, err := k.Reconcile(ctx, tc.request)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(result.Requeue).To(BeFalse())
 			g.Expect(result.RequeueAfter).To(Equal(30 * time.Second))
@@ -435,7 +432,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_GenerateCloudConfigData(t *te
 	controlPlaneInitMachine := newControlPlaneMachine(cluster, "control-plane-init-machine")
 	controlPlaneInitConfig := newControlPlaneInitKubeadmIgnitionConfig(controlPlaneInitMachine, "control-plane-init-cfg")
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		controlPlaneInitMachine,
 		controlPlaneInitConfig,
@@ -456,7 +453,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_GenerateCloudConfigData(t *te
 			Name:      "control-plane-init-cfg",
 		},
 	}
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -467,7 +464,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_GenerateCloudConfigData(t *te
 	g.Expect(cfg.Status.DataSecretName).NotTo(BeNil())
 
 	// Ensure that we don't fail trying to refresh any bootstrap tokens
-	_, err = k.Reconcile(request)
+	_, err = k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -486,7 +483,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ErrorIfJoiningControlPlaneHas
 	controlPlaneJoinConfig := newControlPlaneJoinKubeadmIgnitionConfig(controlPlaneJoinMachine, "control-plane-join-cfg")
 	controlPlaneJoinConfig.Spec.JoinConfiguration.ControlPlane = nil // Makes controlPlaneJoinConfig invalid for a control plane machine
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		controlPlaneJoinMachine,
 		controlPlaneJoinConfig,
@@ -507,7 +504,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ErrorIfJoiningControlPlaneHas
 			Name:      "control-plane-join-cfg",
 		},
 	}
-	_, err := k.Reconcile(request)
+	_, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -524,7 +521,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_RequeueIfControlPlaneIsMissin
 	workerMachine := newWorkerMachine(cluster)
 	workerJoinConfig := newWorkerJoinKubeadmIgnitionConfig(workerMachine)
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		workerMachine,
 		workerJoinConfig,
@@ -545,7 +542,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_RequeueIfControlPlaneIsMissin
 			Name:      "worker-join-cfg",
 		},
 	}
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(10 * time.Second))
@@ -598,7 +595,7 @@ func TestReconcileIfJoinNodesAndControlPlaneIsReady(t *testing.T) {
 		t.Run(rt.name, func(t *testing.T) {
 			config := rt.configBuilder(rt.machine, rt.configName)
 
-			objects := []runtime.Object{
+			objects := []client.Object{
 				cluster,
 				rt.machine,
 				config,
@@ -618,7 +615,7 @@ func TestReconcileIfJoinNodesAndControlPlaneIsReady(t *testing.T) {
 					Name:      rt.configName,
 				},
 			}
-			result, err := k.Reconcile(request)
+			result, err := k.Reconcile(ctx, request)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(result.Requeue).To(BeFalse())
 			g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -674,7 +671,7 @@ func TestReconcileIfJoinNodePoolsAndControlPlaneIsReady(t *testing.T) {
 		t.Run(rt.name, func(t *testing.T) {
 			config := rt.configBuilder(rt.machinePool, rt.configName)
 
-			objects := []runtime.Object{
+			objects := []client.Object{
 				cluster,
 				rt.machinePool,
 				config,
@@ -694,7 +691,7 @@ func TestReconcileIfJoinNodePoolsAndControlPlaneIsReady(t *testing.T) {
 					Name:      rt.configName,
 				},
 			}
-			result, err := k.Reconcile(request)
+			result, err := k.Reconcile(ctx, request)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(result.Requeue).To(BeFalse())
 			g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -727,7 +724,7 @@ func TestBootstrapTokenTTLExtension(t *testing.T) {
 	workerJoinConfig := newWorkerJoinKubeadmIgnitionConfig(workerMachine)
 	controlPlaneJoinMachine := newControlPlaneMachine(cluster, "control-plane-join-machine")
 	controlPlaneJoinConfig := newControlPlaneJoinKubeadmIgnitionConfig(controlPlaneJoinMachine, "control-plane-join-cfg")
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		workerMachine,
 		workerJoinConfig,
@@ -749,7 +746,7 @@ func TestBootstrapTokenTTLExtension(t *testing.T) {
 			Name:      "worker-join-cfg",
 		},
 	}
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -765,7 +762,7 @@ func TestBootstrapTokenTTLExtension(t *testing.T) {
 			Name:      "control-plane-join-cfg",
 		},
 	}
-	result, err = k.Reconcile(request)
+	result, err = k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -804,7 +801,7 @@ func TestBootstrapTokenTTLExtension(t *testing.T) {
 		},
 	} {
 
-		result, err := k.Reconcile(req)
+		result, err := k.Reconcile(ctx, req)
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(result.RequeueAfter).NotTo(BeNumerically(">=", DefaultTokenTTL))
 	}
@@ -845,7 +842,7 @@ func TestBootstrapTokenTTLExtension(t *testing.T) {
 		},
 	} {
 
-		result, err := k.Reconcile(req)
+		result, err := k.Reconcile(ctx, req)
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(result.Requeue).To(BeFalse())
 		g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -1160,7 +1157,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_AlwaysCheckCAVerificationUnle
 	controlPlaneConfigName := "my-config"
 	config := newKubeadmIgnitionConfig(machine, controlPlaneConfigName)
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster, machine, workerMachine, config,
 	}
 	objects = append(objects, createSecrets(t, cluster, initConfig)...)
@@ -1209,7 +1206,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_AlwaysCheckCAVerificationUnle
 			g.Expect(err).NotTo(HaveOccurred())
 
 			req := ctrl.Request{NamespacedName: key}
-			_, err = reconciler.Reconcile(req)
+			_, err = reconciler.Reconcile(ctx, req)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			cfg := &bootstrapv1.KubeadmIgnitionConfig{}
@@ -1226,7 +1223,7 @@ func TestKubeadmIgnitionConfigReconciler_ClusterToKubeadmIgnitionConfigs(t *test
 	g := NewWithT(t)
 
 	cluster := newCluster("my-cluster")
-	objs := []runtime.Object{cluster}
+	objs := []client.Object{cluster}
 	expectedNames := []string{}
 	for i := 0; i < 3; i++ {
 		m := newMachine(cluster, fmt.Sprintf("my-machine-%d", i))
@@ -1240,9 +1237,7 @@ func TestKubeadmIgnitionConfigReconciler_ClusterToKubeadmIgnitionConfigs(t *test
 		Log:    log.Log,
 		Client: fakeClient,
 	}
-	o := handler.MapObject{
-		Object: cluster,
-	}
+	o := cluster
 	configs := reconciler.ClusterToKubeadmIgnitionConfigs(o)
 	names := make([]string, 3)
 	for i := range configs {
@@ -1279,7 +1274,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_DoesNotFailIfCASecretsAlready
 			"tls.key": []byte("hello world"),
 		},
 	}
-	fakec := fake.NewFakeClientWithScheme(setupScheme(), []runtime.Object{cluster, m, c, scrt}...)
+	fakec := fake.NewFakeClientWithScheme(setupScheme(), []client.Object{cluster, m, c, scrt}...)
 	reconciler := &KubeadmIgnitionConfigReconciler{
 		Log:             log.Log,
 		Client:          fakec,
@@ -1288,7 +1283,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_DoesNotFailIfCASecretsAlready
 	req := ctrl.Request{
 		NamespacedName: client.ObjectKey{Namespace: "default", Name: configName},
 	}
-	_, err := reconciler.Reconcile(req)
+	_, err := reconciler.Reconcile(ctx, req)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -1305,7 +1300,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ExactlyOneControlPlaneMachine
 	controlPlaneInitMachineSecond := newControlPlaneMachine(cluster, "control-plane-init-machine-second")
 	controlPlaneInitConfigSecond := newControlPlaneInitKubeadmIgnitionConfig(controlPlaneInitMachineSecond, "control-plane-init-cfg-second")
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		controlPlaneInitMachineFirst,
 		controlPlaneInitConfigFirst,
@@ -1325,7 +1320,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ExactlyOneControlPlaneMachine
 			Name:      "control-plane-init-cfg-first",
 		},
 	}
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -1336,7 +1331,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_ExactlyOneControlPlaneMachine
 			Name:      "control-plane-init-cfg-second",
 		},
 	}
-	result, err = k.Reconcile(request)
+	result, err = k.Reconcile(ctx, request)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(30 * time.Second))
@@ -1355,7 +1350,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_DoNotPatchWhenErrorOccurred(t
 	// set InitConfiguration as nil, we will check this to determine if the kubeadm config has been patched
 	controlPlaneInitConfig.Spec.InitConfiguration = nil
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		cluster,
 		controlPlaneInitMachine,
 		controlPlaneInitConfig,
@@ -1382,7 +1377,7 @@ func TestKubeadmIgnitionConfigReconciler_Reconcile_DoNotPatchWhenErrorOccurred(t
 		},
 	}
 
-	result, err := k.Reconcile(request)
+	result, err := k.Reconcile(ctx, request)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(result.Requeue).To(BeFalse())
 	g.Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
@@ -1571,8 +1566,8 @@ func newWorkerPoolJoinKubeadmIgnitionConfig(machinePool *expv1.MachinePool) *boo
 	return c
 }
 
-func createSecrets(t *testing.T, cluster *clusterv1.Cluster, config *bootstrapv1.KubeadmIgnitionConfig) []runtime.Object {
-	out := []runtime.Object{}
+func createSecrets(t *testing.T, cluster *clusterv1.Cluster, config *bootstrapv1.KubeadmIgnitionConfig) []client.Object {
+	out := []client.Object{}
 	if config.Spec.ClusterConfiguration == nil {
 		config.Spec.ClusterConfiguration = &kubeadmv1beta1.ClusterConfiguration{}
 	}

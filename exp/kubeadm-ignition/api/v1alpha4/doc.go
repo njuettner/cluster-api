@@ -14,14 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha3
-
-import (
-	ctrl "sigs.k8s.io/controller-runtime"
-)
-
-func (r *KubeadmIgnitionConfigList) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
-}
+package v1alpha4

@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"testing"
 
+	. "github.com/onsi/gomega"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,8 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha4"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -42,29 +44,26 @@ const (
 	clusterNamespace = "test-namespace"
 )
 
-func init() {
-	klog.InitFlags(nil)
-}
+var (
+	ctx = ctrl.SetupSignalHandler()
+)
 
 func TestControlPlaneInitMutex_Lock(t *testing.T) {
+	g := NewWithT(t)
+
 	scheme := runtime.NewScheme()
-	if err := clusterv1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
+	g.Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
+	g.Expect(corev1.AddToScheme(scheme)).To(Succeed())
+
 	uid := types.UID("test-uid")
 
 	tests := []struct {
 		name          string
-		context       context.Context
 		client        client.Client
 		shouldAcquire bool
 	}{
 		{
-			name:    "should successfully acquire lock if the config cannot be found",
-			context: context.Background(),
+			name: "should successfully acquire lock if the config cannot be found",
 			client: &fakeClient{
 				Client:   fake.NewFakeClientWithScheme(scheme),
 				getError: apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "configmaps"}, fmt.Sprintf("%s-controlplane", uid)),
@@ -72,8 +71,7 @@ func TestControlPlaneInitMutex_Lock(t *testing.T) {
 			shouldAcquire: true,
 		},
 		{
-			name:    "should not acquire lock if already exits",
-			context: context.Background(),
+			name: "should not acquire lock if already exits",
 			client: &fakeClient{
 				Client: fake.NewFakeClientWithScheme(scheme, &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
@@ -85,8 +83,7 @@ func TestControlPlaneInitMutex_Lock(t *testing.T) {
 			shouldAcquire: false,
 		},
 		{
-			name:    "should not acquire lock if cannot create config map",
-			context: context.Background(),
+			name: "should not acquire lock if cannot create config map",
 			client: &fakeClient{
 				Client:      fake.NewFakeClientWithScheme(scheme),
 				getError:    apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "configmaps"}, configMapName(clusterName)),
@@ -95,8 +92,7 @@ func TestControlPlaneInitMutex_Lock(t *testing.T) {
 			shouldAcquire: false,
 		},
 		{
-			name:    "should not acquire lock if config map already exists while creating",
-			context: context.Background(),
+			name: "should not acquire lock if config map already exists while creating",
 			client: &fakeClient{
 				Client:      fake.NewFakeClientWithScheme(scheme),
 				getError:    apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "configmaps"}, fmt.Sprintf("%s-controlplane", uid)),
@@ -109,6 +105,8 @@ func TestControlPlaneInitMutex_Lock(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			gs := NewWithT(t)
+
 			l := &ControlPlaneInitMutex{
 				log:    log.Log,
 				client: tc.client,
@@ -127,21 +125,17 @@ func TestControlPlaneInitMutex_Lock(t *testing.T) {
 				},
 			}
 
-			actual := l.Lock(context.Background(), cluster, machine)
-			if actual != tc.shouldAcquire {
-				t.Fatalf("acquired was %v, but it should be %v", actual, tc.shouldAcquire)
-			}
+			gs.Expect(l.Lock(ctx, cluster, machine)).To(Equal(tc.shouldAcquire))
 		})
 	}
 }
 func TestControlPlaneInitMutex_UnLock(t *testing.T) {
+	g := NewWithT(t)
+
 	scheme := runtime.NewScheme()
-	if err := clusterv1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
+	g.Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
+	g.Expect(corev1.AddToScheme(scheme)).To(Succeed())
+
 	uid := types.UID("test-uid")
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -151,21 +145,18 @@ func TestControlPlaneInitMutex_UnLock(t *testing.T) {
 	}
 	tests := []struct {
 		name          string
-		context       context.Context
 		client        client.Client
 		shouldRelease bool
 	}{
 		{
-			name:    "should release lock by deleting config map",
-			context: context.Background(),
+			name: "should release lock by deleting config map",
 			client: &fakeClient{
 				Client: fake.NewFakeClientWithScheme(scheme),
 			},
 			shouldRelease: true,
 		},
 		{
-			name:    "should not release lock if cannot delete config map",
-			context: context.Background(),
+			name: "should not release lock if cannot delete config map",
 			client: &fakeClient{
 				Client:      fake.NewFakeClientWithScheme(scheme, configMap),
 				deleteError: errors.New("delete error"),
@@ -173,8 +164,7 @@ func TestControlPlaneInitMutex_UnLock(t *testing.T) {
 			shouldRelease: false,
 		},
 		{
-			name:    "should release lock if config map does not exist",
-			context: context.Background(),
+			name: "should release lock if config map does not exist",
 			client: &fakeClient{
 				Client:   fake.NewFakeClientWithScheme(scheme),
 				getError: apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "configmaps"}, fmt.Sprintf("%s-controlplane", uid)),
@@ -182,8 +172,7 @@ func TestControlPlaneInitMutex_UnLock(t *testing.T) {
 			shouldRelease: true,
 		},
 		{
-			name:    "should not release lock if error while getting config map",
-			context: context.Background(),
+			name: "should not release lock if error while getting config map",
 			client: &fakeClient{
 				Client:   fake.NewFakeClientWithScheme(scheme),
 				getError: errors.New("get error"),
@@ -195,6 +184,8 @@ func TestControlPlaneInitMutex_UnLock(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			gs := NewWithT(t)
+
 			l := &ControlPlaneInitMutex{
 				log:    log.Log,
 				client: tc.client,
@@ -208,29 +199,23 @@ func TestControlPlaneInitMutex_UnLock(t *testing.T) {
 				},
 			}
 
-			released := l.Unlock(context.Background(), cluster)
-			if released != tc.shouldRelease {
-				t.Fatalf("released was %v, but it should be %v\n", released, tc.shouldRelease)
-			}
-
+			gs.Expect(l.Unlock(ctx, cluster)).To(Equal(tc.shouldRelease))
 		})
 	}
 }
 
 func TestInfoLines_Lock(t *testing.T) {
+	g := NewWithT(t)
+
 	scheme := runtime.NewScheme()
-	if err := clusterv1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
+	g.Expect(clusterv1.AddToScheme(scheme)).To(Succeed())
+	g.Expect(corev1.AddToScheme(scheme)).To(Succeed())
+
 	uid := types.UID("test-uid")
 	info := information{MachineName: "my-control-plane"}
 	b, err := json.Marshal(info)
-	if err != nil {
-		t.Fatal("failed to marshal info")
-	}
+	g.Expect(err).NotTo(HaveOccurred())
+
 	c := &fakeClient{
 		Client: fake.NewFakeClientWithScheme(scheme, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -261,21 +246,19 @@ func TestInfoLines_Lock(t *testing.T) {
 			Name: fmt.Sprintf("machine-%s", cluster.Name),
 		},
 	}
-	if l.Lock(context.Background(), cluster, machine) != false {
-		t.Fatal("acquired lock but did not expect to")
-	}
+
+	g.Expect(l.Lock(ctx, cluster, machine)).To(BeFalse())
+
 	foundLogLine := false
 	for _, line := range logtester.InfoLog {
-		fmt.Println(line)
 		for k, v := range line.data {
 			if k == "init-machine" && v.(string) == "my-control-plane" {
 				foundLogLine = true
 			}
 		}
 	}
-	if !foundLogLine {
-		t.Fatalf("Did not find the log line containing the name of the machine currently intializing")
-	}
+
+	g.Expect(foundLogLine).To(BeTrue())
 }
 
 type fakeClient struct {
@@ -285,21 +268,21 @@ type fakeClient struct {
 	deleteError error
 }
 
-func (fc *fakeClient) Get(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+func (fc *fakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 	if fc.getError != nil {
 		return fc.getError
 	}
 	return fc.Client.Get(ctx, key, obj)
 }
 
-func (fc *fakeClient) Create(ctx context.Context, obj runtime.Object, opts ...client.CreateOption) error {
+func (fc *fakeClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	if fc.createError != nil {
 		return fc.createError
 	}
 	return fc.Client.Create(ctx, obj, opts...)
 }
 
-func (fc *fakeClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
+func (fc *fakeClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
 	if fc.deleteError != nil {
 		return fc.deleteError
 	}
