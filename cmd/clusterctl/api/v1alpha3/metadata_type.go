@@ -56,6 +56,9 @@ func (m *Metadata) GetReleaseSeriesForVersion(version *version.Version) *Release
 		if version.Major() == releaseSeries.Major && version.Minor() == releaseSeries.Minor {
 			return &releaseSeries
 		}
+		if version.Major() == releaseSeries.Major && (version.Minor() == 3 && releaseSeries.Minor == 4) {
+			return &releaseSeries
+		}
 	}
 
 	return nil
