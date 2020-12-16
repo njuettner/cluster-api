@@ -91,7 +91,7 @@ func (p *providersClient) defaults() []Provider {
 		// cluster API core provider
 		&provider{
 			name:         ClusterAPIProviderName,
-			url:          "https://github.com/kubernetes-sigs/cluster-api/releases/latest/core-components.yaml",
+			url:          "https://raw.githubusercontent.com/kinvolk/cluster-api/v1alpha4-manifest-test/manifests/core-components.yaml",
 			providerType: clusterctlv1.CoreProviderType,
 		},
 
@@ -146,7 +146,7 @@ func (p *providersClient) defaults() []Provider {
 		// Bootstrap providers
 		&provider{
 			name:         KubeadmBootstrapProviderName,
-			url:          "https://github.com/kubernetes-sigs/cluster-api/releases/latest/bootstrap-components.yaml",
+			url:          "https://raw.githubusercontent.com/kinvolk/cluster-api/v1alpha4-manifest-test/manifests/bootstrap-components.yaml",
 			providerType: clusterctlv1.BootstrapProviderType,
 		},
 		&provider{
@@ -162,7 +162,7 @@ func (p *providersClient) defaults() []Provider {
 		// ControlPlane providers
 		&provider{
 			name:         KubeadmControlPlaneProviderName,
-			url:          "https://github.com/kubernetes-sigs/cluster-api/releases/latest/control-plane-components.yaml",
+			url:          "https://raw.githubusercontent.com/kinvolk/cluster-api/v1alpha4-manifest-test/manifests/control-plane-components.yaml",
 			providerType: clusterctlv1.ControlPlaneProviderType,
 		},
 		&provider{
