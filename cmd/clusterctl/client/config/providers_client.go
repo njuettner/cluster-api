@@ -91,14 +91,14 @@ func (p *providersClient) defaults() []Provider {
 		// cluster API core provider
 		&provider{
 			name:         ClusterAPIProviderName,
-			url:          "https://raw.githubusercontent.com/kinvolk/cluster-api/v1alpha4-manifest-test/manifests/core-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test/core-components.yaml",
 			providerType: clusterctlv1.CoreProviderType,
 		},
 
 		// Infrastructure providers
 		&provider{
 			name:         AWSProviderName,
-			url:          "https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases/latest/infrastructure-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api-provider-aws/releases/latest/infrastructure-components.yaml",
 			providerType: clusterctlv1.InfrastructureProviderType,
 		},
 		&provider{
@@ -146,7 +146,7 @@ func (p *providersClient) defaults() []Provider {
 		// Bootstrap providers
 		&provider{
 			name:         KubeadmBootstrapProviderName,
-			url:          "https://raw.githubusercontent.com/kinvolk/cluster-api/v1alpha4-manifest-test/manifests/bootstrap-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test/bootstrap-components.yaml",
 			providerType: clusterctlv1.BootstrapProviderType,
 		},
 		&provider{
@@ -156,13 +156,13 @@ func (p *providersClient) defaults() []Provider {
 		},
 		&provider{
 			name:         AWSEKSBootstrapProviderName,
-			url:          "https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases/latest/eks-bootstrap-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api-provider-aws/releases/latest/eks-bootstrap-components.yaml",
 			providerType: clusterctlv1.BootstrapProviderType,
 		},
 		// ControlPlane providers
 		&provider{
 			name:         KubeadmControlPlaneProviderName,
-			url:          "https://raw.githubusercontent.com/kinvolk/cluster-api/v1alpha4-manifest-test/manifests/control-plane-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test/control-plane-components.yaml",
 			providerType: clusterctlv1.ControlPlaneProviderType,
 		},
 		&provider{
@@ -172,7 +172,7 @@ func (p *providersClient) defaults() []Provider {
 		},
 		&provider{
 			name:         AWSEKSControlPlaneProviderName,
-			url:          "https://github.com/kubernetes-sigs/cluster-api-provider-aws/releases/latest/eks-controlplane-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api-provider-aws/releases/latest/eks-controlplane-components.yaml",
 			providerType: clusterctlv1.ControlPlaneProviderType,
 		},
 	}
