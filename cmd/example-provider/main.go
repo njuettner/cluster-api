@@ -38,9 +38,9 @@ func main() {
 	var enableLeaderElection bool
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	var metricsAddr string
+	var metricsBindAddr string
 	var healthAddr string
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
+	flag.StringVar(&metricsBindAddr, "metrics-bind-addr", ":8080",
 		"The address the metric endpoint binds to.")
 	flag.StringVar(&healthAddr, "health-addr", ":9440",
 		"The address the health endpoint binds to.")
@@ -53,7 +53,7 @@ func main() {
 		Scheme:                 scheme.Scheme,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "controller-leader-election-capi-example",
-		MetricsBindAddress:     metricsAddr,
+		MetricsBindAddress:     metricsBindAddr,
 		HealthProbeBindAddress: healthAddr,
 	})
 	if err != nil {

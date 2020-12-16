@@ -61,7 +61,7 @@ func init() {
 }
 
 var (
-	metricsAddr                 string
+	metricsBindAddr             string
 	enableLeaderElection        bool
 	leaderElectionLeaseDuration time.Duration
 	leaderElectionRenewDeadline time.Duration
@@ -76,7 +76,7 @@ var (
 )
 
 func InitFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&metricsAddr, "metrics-addr", ":8080",
+	fs.StringVar(&metricsBindAddr, "metrics-bind-addr", ":8080",
 		"The address the metric endpoint binds to.")
 
 	fs.BoolVar(&enableLeaderElection, "enable-leader-election", false,
@@ -143,7 +143,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
+		MetricsBindAddress: metricsBindAddr,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "kubeadm-bootstrap-manager-leader-election-capi",
 		LeaseDuration:      &leaderElectionLeaseDuration,
