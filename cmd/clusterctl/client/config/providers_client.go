@@ -91,7 +91,7 @@ func (p *providersClient) defaults() []Provider {
 		// cluster API core provider
 		&provider{
 			name:         ClusterAPIProviderName,
-			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test/core-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test2021/core-components.yaml",
 			providerType: clusterctlv1.CoreProviderType,
 		},
 
@@ -146,7 +146,7 @@ func (p *providersClient) defaults() []Provider {
 		// Bootstrap providers
 		&provider{
 			name:         KubeadmBootstrapProviderName,
-			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test/bootstrap-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test2021/bootstrap-components.yaml",
 			providerType: clusterctlv1.BootstrapProviderType,
 		},
 		&provider{
@@ -162,7 +162,7 @@ func (p *providersClient) defaults() []Provider {
 		// ControlPlane providers
 		&provider{
 			name:         KubeadmControlPlaneProviderName,
-			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test/control-plane-components.yaml",
+			url:          "https://github.com/dongsupark/cluster-api/releases/v0.3.99-test2021/control-plane-components.yaml",
 			providerType: clusterctlv1.ControlPlaneProviderType,
 		},
 		&provider{
