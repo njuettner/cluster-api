@@ -97,6 +97,72 @@ type KubeadmConfigSpec struct {
 	UseExperimentalRetryJoin bool `json:"useExperimentalRetryJoin,omitempty"`
 }
 
+// KubeadmIgnitionConfigSpec defines the desired state of KubeadmIgnitionConfig.
+// Either ClusterConfiguration and InitConfiguration should be defined or the JoinConfiguration should be defined.
+type KubeadmIgnitionConfigSpec struct {
+	// ClusterConfiguration along with InitConfiguration are the configurations necessary for the init command
+	// +optional
+	ClusterConfiguration *kubeadmv1beta1.ClusterConfiguration `json:"clusterConfiguration,omitempty"`
+
+	// InitConfiguration along with ClusterConfiguration are the configurations necessary for the init command
+	// +optional
+	InitConfiguration *kubeadmv1beta1.InitConfiguration `json:"initConfiguration,omitempty"`
+
+	// JoinConfiguration is the kubeadm configuration for the join command
+	// +optional
+	JoinConfiguration *kubeadmv1beta1.JoinConfiguration `json:"joinConfiguration,omitempty"`
+
+	// Files specifies extra files to be passed to user_data upon creation.
+	// +optional
+	Files []File `json:"files,omitempty"`
+
+	// DiskSetup specifies options for the creation of partition tables and file systems on devices.
+	// +optional
+	DiskSetup *DiskSetup `json:"diskSetup,omitempty"`
+
+	// Mounts specifies a list of mount points to be setup.
+	// +optional
+	Mounts []MountPoints `json:"mounts,omitempty"`
+
+	// PreKubeadmCommands specifies extra commands to run before kubeadm runs
+	// +optional
+	PreKubeadmCommands []string `json:"preKubeadmCommands,omitempty"`
+
+	// PostKubeadmCommands specifies extra commands to run after kubeadm runs
+	// +optional
+	PostKubeadmCommands []string `json:"postKubeadmCommands,omitempty"`
+
+	// Users specifies extra users to add
+	// +optional
+	Users []User `json:"users,omitempty"`
+
+	// NTP specifies NTP configuration
+	// +optional
+	NTP *NTP `json:"ntp,omitempty"`
+
+	// Format specifies the output format of the bootstrap data
+	// +optional
+	Format Format `json:"format,omitempty"`
+
+	// Verbosity is the number for the kubeadm log level verbosity.
+	// It overrides the `--v` flag in kubeadm commands.
+	// +optional
+	Verbosity *int32 `json:"verbosity,omitempty"`
+
+	// UseExperimentalRetryJoin replaces a basic kubeadm command with a shell
+	// script with retries for joins.
+	//
+	// This is meant to be an experimental temporary workaround on some environments
+	// where joins fail due to timing (and other issues). The long term goal is to add retries to
+	// kubeadm proper and use that functionality.
+	//
+	// This will add about 40KB to userdata
+	//
+	// For more information, refer to https://github.com/kubernetes-sigs/cluster-api/pull/2763#discussion_r397306055.
+	// +optional
+	UseExperimentalRetryJoin bool `json:"useExperimentalRetryJoin,omitempty"`
+}
+
 // KubeadmConfigStatus defines the observed state of KubeadmConfig
 type KubeadmConfigStatus struct {
 	// Ready indicates the BootstrapData field is ready to be consumed

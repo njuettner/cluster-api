@@ -56,7 +56,8 @@ type KubeadmControlPlaneSpec struct {
 
 	// KubeadmConfigSpec is a KubeadmConfigSpec
 	// to use for initializing and joining machines to the control plane.
-	KubeadmConfigSpec cabpkv1.KubeadmConfigSpec `json:"kubeadmConfigSpec"`
+	KubeadmConfigSpec         cabpkv1.KubeadmConfigSpec         `json:"kubeadmConfigSpec"`
+	KubeadmIgnitionConfigSpec cabpkv1.KubeadmIgnitionConfigSpec `json:"kubeadmConfigIgnitionSpec"`
 
 	// UpgradeAfter is a field to indicate an upgrade should be performed
 	// after the specified time even if no changes have been made to the
