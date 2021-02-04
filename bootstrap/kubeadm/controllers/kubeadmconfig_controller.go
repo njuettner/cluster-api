@@ -427,21 +427,34 @@ func (r *KubeadmConfigReconciler) handleClusterNotInitialized(ctx context.Contex
 		return ctrl.Result{}, err
 	}
 
-	cloudInitData, err := cloudinit.NewInitControlPlane(&cloudinit.ControlPlaneInput{
-		BaseUserData: cloudinit.BaseUserData{
-			AdditionalFiles:     files,
-			NTP:                 scope.Config.Spec.NTP,
-			PreKubeadmCommands:  scope.Config.Spec.PreKubeadmCommands,
-			PostKubeadmCommands: scope.Config.Spec.PostKubeadmCommands,
-			Users:               scope.Config.Spec.Users,
-			Mounts:              scope.Config.Spec.Mounts,
-			DiskSetup:           scope.Config.Spec.DiskSetup,
-			KubeadmVerbosity:    verbosityFlag,
-		},
-		InitConfiguration:    initdata,
-		ClusterConfiguration: clusterdata,
-		Certificates:         certificates,
-	})
+	scope.Info(fmt.Sprintf("Using format: %q", scope.Config.Spec.Format))
+	var cloudInitData []byte
+
+	switch scope.Config.Spec.Format {
+	case bootstrapv1.Ignition:
+		cloudInitData, err = cloudinit.NewInitControlPlaneIgnition(&cloudinit.ControlPlaneInput{
+			InitConfiguration:    initdata,
+			ClusterConfiguration: clusterdata,
+			Certificates:         certificates,
+		})
+	default:
+		cloudInitData, err = cloudinit.NewInitControlPlane(&cloudinit.ControlPlaneInput{
+			BaseUserData: cloudinit.BaseUserData{ // not needed
+				AdditionalFiles:     files,                                 // not needed
+				NTP:                 scope.Config.Spec.NTP,                 // not needed
+				PreKubeadmCommands:  scope.Config.Spec.PreKubeadmCommands,  // not needed
+				PostKubeadmCommands: scope.Config.Spec.PostKubeadmCommands, // not needed
+				Users:               scope.Config.Spec.Users,               // not needed
+				Mounts:              scope.Config.Spec.Mounts,              // not needed
+				DiskSetup:           scope.Config.Spec.DiskSetup,           // not needed
+				KubeadmVerbosity:    verbosityFlag,                         // not needed
+			},
+			InitConfiguration:    initdata,
+			ClusterConfiguration: clusterdata,
+			Certificates:         certificates,
+		})
+	}
+
 	if err != nil {
 		scope.Error(err, "Failed to generate cloud init for bootstrap control plane")
 		return ctrl.Result{}, err
@@ -502,20 +515,31 @@ func (r *KubeadmConfigReconciler) joinWorker(ctx context.Context, scope *Scope) 
 		return ctrl.Result{}, err
 	}
 
-	cloudJoinData, err := cloudinit.NewNode(&cloudinit.NodeInput{
-		BaseUserData: cloudinit.BaseUserData{
-			AdditionalFiles:      files,
-			NTP:                  scope.Config.Spec.NTP,
-			PreKubeadmCommands:   scope.Config.Spec.PreKubeadmCommands,
-			PostKubeadmCommands:  scope.Config.Spec.PostKubeadmCommands,
-			Users:                scope.Config.Spec.Users,
-			Mounts:               scope.Config.Spec.Mounts,
-			DiskSetup:            scope.Config.Spec.DiskSetup,
-			KubeadmVerbosity:     verbosityFlag,
-			UseExperimentalRetry: scope.Config.Spec.UseExperimentalRetryJoin,
-		},
-		JoinConfiguration: joinData,
-	})
+	scope.Info(fmt.Sprintf("Using format: %q", scope.Config.Spec.Format))
+	var cloudJoinData []byte
+
+	switch scope.Config.Spec.Format {
+	case bootstrapv1.Ignition:
+		cloudJoinData, err = cloudinit.NewNodeIgnition(&cloudinit.NodeInput{
+			JoinConfiguration: joinData,
+		})
+	default:
+		cloudJoinData, err = cloudinit.NewNode(&cloudinit.NodeInput{
+			BaseUserData: cloudinit.BaseUserData{ // not needed
+				AdditionalFiles:      files,                                      // not needed
+				NTP:                  scope.Config.Spec.NTP,                      // not needed
+				PreKubeadmCommands:   scope.Config.Spec.PreKubeadmCommands,       // not needed
+				PostKubeadmCommands:  scope.Config.Spec.PostKubeadmCommands,      // not needed
+				Users:                scope.Config.Spec.Users,                    // not needed
+				Mounts:               scope.Config.Spec.Mounts,                   // not needed
+				DiskSetup:            scope.Config.Spec.DiskSetup,                // not needed
+				KubeadmVerbosity:     verbosityFlag,                              // not needed
+				UseExperimentalRetry: scope.Config.Spec.UseExperimentalRetryJoin, // not needed
+			},
+			JoinConfiguration: joinData, // not needed
+		})
+	}
+
 	if err != nil {
 		scope.Error(err, "Failed to create a worker join configuration")
 		return ctrl.Result{}, err
@@ -579,21 +603,33 @@ func (r *KubeadmConfigReconciler) joinControlplane(ctx context.Context, scope *S
 		return ctrl.Result{}, err
 	}
 
-	cloudJoinData, err := cloudinit.NewJoinControlPlane(&cloudinit.ControlPlaneJoinInput{
-		JoinConfiguration: joinData,
-		Certificates:      certificates,
-		BaseUserData: cloudinit.BaseUserData{
-			AdditionalFiles:      files,
-			NTP:                  scope.Config.Spec.NTP,
-			PreKubeadmCommands:   scope.Config.Spec.PreKubeadmCommands,
-			PostKubeadmCommands:  scope.Config.Spec.PostKubeadmCommands,
-			Users:                scope.Config.Spec.Users,
-			Mounts:               scope.Config.Spec.Mounts,
-			DiskSetup:            scope.Config.Spec.DiskSetup,
-			KubeadmVerbosity:     verbosityFlag,
-			UseExperimentalRetry: scope.Config.Spec.UseExperimentalRetryJoin,
-		},
-	})
+	scope.Info(fmt.Sprintf("Using format: %q", scope.Config.Spec.Format))
+	var cloudJoinData []byte
+
+	switch scope.Config.Spec.Format {
+	case bootstrapv1.Ignition:
+		cloudJoinData, err = cloudinit.NewJoinControlPlaneIgnition(&cloudinit.ControlPlaneJoinInput{
+			JoinConfiguration: joinData,
+			Certificates:      certificates,
+		})
+	default:
+		cloudJoinData, err = cloudinit.NewJoinControlPlane(&cloudinit.ControlPlaneJoinInput{
+			JoinConfiguration: joinData,
+			Certificates:      certificates,
+			BaseUserData: cloudinit.BaseUserData{ // not needed
+				AdditionalFiles:      files,                                      // not needed
+				NTP:                  scope.Config.Spec.NTP,                      // not needed
+				PreKubeadmCommands:   scope.Config.Spec.PreKubeadmCommands,       // not needed
+				PostKubeadmCommands:  scope.Config.Spec.PostKubeadmCommands,      // not needed
+				Users:                scope.Config.Spec.Users,                    // not needed
+				Mounts:               scope.Config.Spec.Mounts,                   // not needed
+				DiskSetup:            scope.Config.Spec.DiskSetup,                // not needed
+				KubeadmVerbosity:     verbosityFlag,                              // not needed
+				UseExperimentalRetry: scope.Config.Spec.UseExperimentalRetryJoin, // not needed
+			},
+		})
+	}
+
 	if err != nil {
 		scope.Error(err, "Failed to create a control plane join configuration")
 		return ctrl.Result{}, err

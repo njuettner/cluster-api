@@ -419,6 +419,7 @@ spec:
                           data
                         enum:
                         - cloud-config
+                        - ignition
                         type: string
                       initConfiguration:
                         description: InitConfiguration along with ClusterConfiguration
@@ -1372,6 +1373,7 @@ spec:
                           data
                         enum:
                         - cloud-config
+                        - ignition
                         type: string
                       initConfiguration:
                         description: InitConfiguration along with ClusterConfiguration

@@ -3,13 +3,18 @@ module sigs.k8s.io/cluster-api
 go 1.13
 
 require (
+	cloud.google.com/go v0.52.0 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0
+	github.com/ajeddeloh/go-json v0.0.0-20200220154158-5ae607161559 // indirect
+	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coredns/corefile-migration v1.0.11
+	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/drone/envsubst v1.0.3-0.20200709223903-efdb65b94e5a
 	github.com/evanphx/json-patch v4.9.0+incompatible
+	github.com/flatcar-linux/container-linux-config-transpiler v0.6.2-0.20201012083443-7abced2731c3
 	github.com/go-logr/logr v0.1.0
 	github.com/gobuffalo/flect v0.2.2
 	github.com/gogo/protobuf v1.3.1 // indirect
@@ -26,6 +31,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.2
+	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50 // indirect
 	go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738
 	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d

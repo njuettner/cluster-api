@@ -393,6 +393,7 @@ spec:
                 description: Format specifies the output format of the bootstrap data
                 enum:
                 - cloud-config
+                - ignition
                 type: string
               initConfiguration:
                 description: InitConfiguration along with ClusterConfiguration are
@@ -1305,6 +1306,7 @@ spec:
                 description: Format specifies the output format of the bootstrap data
                 enum:
                 - cloud-config
+                - ignition
                 type: string
               initConfiguration:
                 description: InitConfiguration along with ClusterConfiguration are
