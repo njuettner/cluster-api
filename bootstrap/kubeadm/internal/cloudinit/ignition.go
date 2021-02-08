@@ -126,7 +126,7 @@ func generateIgnition(kind string, tpl string, data interface{}) ([]byte, error)
 		return nil, fmt.Errorf("parsing generated CLC: %v", report.String())
 	}
 
-	ignCfg, report := config.Convert(cfg, platform.EC2, ast)
+	ignCfg, report := config.Convert(cfg, platform.EC2, ast) // Check why EC2 is here and if it's needed.
 	if len(report.Entries) > 0 {
 		return nil, fmt.Errorf("converting parsed CLC into Ignition: %v", report.String())
 	}
