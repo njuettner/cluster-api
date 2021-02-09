@@ -34,6 +34,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
 	bootstrapv1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1alpha3"
 	"sigs.k8s.io/cluster-api/bootstrap/kubeadm/internal/cloudinit"
+	"sigs.k8s.io/cluster-api/bootstrap/kubeadm/internal/ignition"
 	"sigs.k8s.io/cluster-api/bootstrap/kubeadm/internal/locking"
 	kubeadmv1beta1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/types/v1beta1"
 	bsutil "sigs.k8s.io/cluster-api/bootstrap/util"
@@ -446,12 +447,27 @@ func (r *KubeadmConfigReconciler) handleClusterNotInitialized(ctx context.Contex
 	var cloudInitData []byte
 
 	switch scope.Config.Spec.Format {
+	case bootstrapv1.Ignition:
+		ign, warnings, err := ignition.NewInitControlPlane(&ignition.ControlPlaneInput{
+			ControlPlaneInput: controlPlaneInput,
+			Ignition:          scope.Config.Spec.Ignition,
+		})
+		if err != nil {
+			scope.Error(err, "Failed to generate Ignition user data for bootstrap control plane")
+			return ctrl.Result{}, err
+		}
+
+		if warnings != "" {
+			conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.IgnitionHasWarningsReason, clusterv1.ConditionSeverityWarning, warnings)
+		}
+
+		cloudInitData = ign
 	default:
 		cloudInitData, err = cloudinit.NewInitControlPlane(controlPlaneInput)
 	}
 
 	if err != nil {
-		scope.Error(err, "Failed to generate cloud init for bootstrap control plane")
+		scope.Error(err, "Failed to generate user data for bootstrap control plane")
 		return ctrl.Result{}, err
 	}
 
@@ -528,6 +544,22 @@ func (r *KubeadmConfigReconciler) joinWorker(ctx context.Context, scope *Scope) 
 	var cloudJoinData []byte
 
 	switch scope.Config.Spec.Format {
+	case bootstrapv1.Ignition:
+		ign, warnings, err := ignition.NewNode(&ignition.NodeInput{
+			NodeInput: nodeInput,
+			Ignition:  scope.Config.Spec.Ignition,
+		})
+
+		if err != nil {
+			scope.Error(err, "Failed to generate Ignition user data for the worker node")
+			return ctrl.Result{}, err
+		}
+
+		if warnings != "" {
+			conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.IgnitionHasWarningsReason, clusterv1.ConditionSeverityWarning, warnings)
+		}
+
+		cloudJoinData = ign
 	default:
 		cloudJoinData, err = cloudinit.NewNode(nodeInput)
 	}
@@ -614,6 +646,22 @@ func (r *KubeadmConfigReconciler) joinControlplane(ctx context.Context, scope *S
 	var cloudJoinData []byte
 
 	switch scope.Config.Spec.Format {
+	case bootstrapv1.Ignition:
+		ign, warnings, err := ignition.NewJoinControlPlane(&ignition.ControlPlaneJoinInput{
+			ControlPlaneJoinInput: controlPlaneJoinInput,
+			Ignition:              scope.Config.Spec.Ignition,
+		})
+
+		if err != nil {
+			scope.Error(err, "Failed to generate Ignition user data for join control plane")
+			return ctrl.Result{}, err
+		}
+
+		if warnings != "" {
+			conditions.MarkFalse(scope.Config, bootstrapv1.DataSecretAvailableCondition, bootstrapv1.IgnitionHasWarningsReason, clusterv1.ConditionSeverityWarning, warnings)
+		}
+
+		cloudJoinData = ign
 	default:
 		cloudJoinData, err = cloudinit.NewJoinControlPlane(controlPlaneJoinInput)
 	}
