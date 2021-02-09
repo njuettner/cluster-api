@@ -421,7 +421,7 @@ func (r *KubeadmConfigReconciler) handleClusterNotInitialized(ctx context.Contex
 		return ctrl.Result{}, err
 	}
 
-	cloudInitData, err := cloudinit.NewInitControlPlane(&cloudinit.ControlPlaneInput{
+	controlPlaneInput := &cloudinit.ControlPlaneInput{
 		BaseUserData: cloudinit.BaseUserData{
 			AdditionalFiles:     files,
 			NTP:                 scope.Config.Spec.NTP,
@@ -435,7 +435,9 @@ func (r *KubeadmConfigReconciler) handleClusterNotInitialized(ctx context.Contex
 		InitConfiguration:    initdata,
 		ClusterConfiguration: clusterdata,
 		Certificates:         certificates,
-	})
+	}
+
+	cloudInitData, err := cloudinit.NewInitControlPlane(controlPlaneInput)
 	if err != nil {
 		scope.Error(err, "Failed to generate cloud init for bootstrap control plane")
 		return ctrl.Result{}, err
@@ -496,7 +498,7 @@ func (r *KubeadmConfigReconciler) joinWorker(ctx context.Context, scope *Scope) 
 		return ctrl.Result{}, err
 	}
 
-	cloudJoinData, err := cloudinit.NewNode(&cloudinit.NodeInput{
+	nodeInput := &cloudinit.NodeInput{
 		BaseUserData: cloudinit.BaseUserData{
 			AdditionalFiles:      files,
 			NTP:                  scope.Config.Spec.NTP,
@@ -509,7 +511,9 @@ func (r *KubeadmConfigReconciler) joinWorker(ctx context.Context, scope *Scope) 
 			UseExperimentalRetry: scope.Config.Spec.UseExperimentalRetryJoin,
 		},
 		JoinConfiguration: joinData,
-	})
+	}
+
+	cloudJoinData, err := cloudinit.NewNode(nodeInput)
 	if err != nil {
 		scope.Error(err, "Failed to create a worker join configuration")
 		return ctrl.Result{}, err
@@ -573,7 +577,7 @@ func (r *KubeadmConfigReconciler) joinControlplane(ctx context.Context, scope *S
 		return ctrl.Result{}, err
 	}
 
-	cloudJoinData, err := cloudinit.NewJoinControlPlane(&cloudinit.ControlPlaneJoinInput{
+	controlPlaneJoinInput := &cloudinit.ControlPlaneJoinInput{
 		JoinConfiguration: joinData,
 		Certificates:      certificates,
 		BaseUserData: cloudinit.BaseUserData{
@@ -587,7 +591,9 @@ func (r *KubeadmConfigReconciler) joinControlplane(ctx context.Context, scope *S
 			KubeadmVerbosity:     verbosityFlag,
 			UseExperimentalRetry: scope.Config.Spec.UseExperimentalRetryJoin,
 		},
-	})
+	}
+
+	cloudJoinData, err := cloudinit.NewJoinControlPlane(controlPlaneJoinInput)
 	if err != nil {
 		scope.Error(err, "Failed to create a control plane join configuration")
 		return ctrl.Result{}, err
