@@ -49,6 +49,11 @@ const (
 	// an error while generating a data secret; those kind of errors are usually due to misconfigurations
 	// and user intervention is required to get them fixed.
 	DataSecretGenerationFailedReason = "DataSecretGenerationFailed"
+
+	// IgnitionHasWarningsReason (Severity=Warning) documents a KubeadmConfig controller detecting
+	// warnings while generating Ignition configuration; those kind of warnings are not harmful, but users
+	// should be able to find out about them.
+	IgnitionHasWarningsReason = "IgnitionHasWarnings"
 )
 
 const (

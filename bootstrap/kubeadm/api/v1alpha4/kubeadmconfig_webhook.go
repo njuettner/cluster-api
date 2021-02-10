@@ -115,8 +115,52 @@ func (c *KubeadmConfigSpec) validate(name string) error {
 		knownPaths[file.Path] = struct{}{}
 	}
 
+	allErrs = append(allErrs, c.validateIgnition()...)
+
 	if len(allErrs) == 0 {
 		return nil
 	}
 	return apierrors.NewInvalid(GroupVersion.WithKind("KubeadmConfig").GroupKind(), name, allErrs)
+}
+
+func (c *KubeadmConfigSpec) validateIgnition() field.ErrorList {
+	var allErrs field.ErrorList
+
+	if c.Ignition != nil && c.Format != Ignition {
+		allErrs = append(allErrs, field.Invalid(
+			field.NewPath("spec", "format"), c.Format, fmt.Sprintf("must be set to %q if spec.ignition is set", Ignition)))
+	}
+
+	if c.Format == Ignition && c.Ignition == nil {
+		allErrs = append(allErrs, field.Invalid(
+			field.NewPath("spec", "ignition"), c.Ignition, fmt.Sprintf("must be set if spec.format is set to %q", Ignition)))
+	}
+
+	if c.Format != Ignition {
+		return allErrs
+	}
+
+	detail := fmt.Sprintf("is not supported when spec.format is set to %q", Ignition)
+
+	if c.DiskSetup != nil {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "diskSetup"), detail))
+	}
+
+	if len(c.Mounts) > 0 {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "mounts"), detail))
+	}
+
+	if len(c.Users) > 0 {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "users"), detail))
+	}
+
+	if c.NTP != nil {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "ntp"), detail))
+	}
+
+	if c.UseExperimentalRetryJoin {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "useExperimentalRetryJoin"), detail))
+	}
+
+	return allErrs
 }

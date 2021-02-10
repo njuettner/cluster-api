@@ -145,6 +145,101 @@ func TestClusterValidate(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		"returns_error_when_Ignition_fields_are_set_but_format_is_not_Ignition": {
+			in: &KubeadmConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "baz",
+					Namespace: "default",
+				},
+				Spec: KubeadmConfigSpec{
+					Ignition: &IgnitionSpec{},
+				},
+			},
+			expectErr: true,
+		},
+		"returns_error_when_format_is_Ignition_but_there_is_no_Ignition_configuration": {
+			in: &KubeadmConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "baz",
+					Namespace: "default",
+				},
+				Spec: KubeadmConfigSpec{
+					Format: Ignition,
+				},
+			},
+			expectErr: true,
+		},
+		"returns_error_when_format_is_Ignition_and_disk_setup_is_configured": {
+			in: &KubeadmConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "baz",
+					Namespace: "default",
+				},
+				Spec: KubeadmConfigSpec{
+					Format:    Ignition,
+					DiskSetup: &DiskSetup{},
+				},
+			},
+			expectErr: true,
+		},
+		"returns_error_when_format_is_Ignition_and_mounts_are_configured": {
+			in: &KubeadmConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "baz",
+					Namespace: "default",
+				},
+				Spec: KubeadmConfigSpec{
+					Format: Ignition,
+					Mounts: []MountPoints{
+						{
+							"",
+						},
+					},
+				},
+			},
+			expectErr: true,
+		},
+		"returns_error_when_format_is_Ignition_and_users_are_configured": {
+			in: &KubeadmConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "baz",
+					Namespace: "default",
+				},
+				Spec: KubeadmConfigSpec{
+					Format: Ignition,
+					Users: []User{
+						{},
+					},
+				},
+			},
+			expectErr: true,
+		},
+		"returns_error_when_format_is_Ignition_and_NTP_is_configured": {
+			in: &KubeadmConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "baz",
+					Namespace: "default",
+				},
+				Spec: KubeadmConfigSpec{
+					Format: Ignition,
+					NTP:    &NTP{},
+				},
+			},
+			expectErr: true,
+		},
+		"returns_error_when_format_is_Ignition_and_experimental_retry_join_is_configured": {
+			in: &KubeadmConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "baz",
+					Namespace: "default",
+				},
+				Spec: KubeadmConfigSpec{
+					Format:                   Ignition,
+					UseExperimentalRetryJoin: true,
+				},
+			},
+			expectErr: true,
+		},
 	}
 
 	for name, tt := range cases {
