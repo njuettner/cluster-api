@@ -44,6 +44,7 @@ func (src *KubeadmConfig) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.Mounts = restored.Spec.Mounts
 	dst.Spec.Files = restored.Spec.Files
 	dst.Status.Conditions = restored.Status.Conditions
+	dst.Spec.Ignition = restored.Spec.Ignition
 
 	// Track files successfully up-converted. We need this to dedupe
 	// restored files from user-updated files on up-conversion. We store
@@ -101,13 +102,34 @@ func (dst *KubeadmConfigList) ConvertFrom(srcRaw conversion.Hub) error {
 // ConvertTo converts this KubeadmConfigTemplate to the Hub version (v1alpha3).
 func (src *KubeadmConfigTemplate) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*kubeadmbootstrapv1alpha3.KubeadmConfigTemplate)
-	return Convert_v1alpha2_KubeadmConfigTemplate_To_v1alpha3_KubeadmConfigTemplate(src, dst, nil)
+	if err := Convert_v1alpha2_KubeadmConfigTemplate_To_v1alpha3_KubeadmConfigTemplate(src, dst, nil); err != nil {
+		return err
+	}
+
+	// Manually restore data.
+	restored := &kubeadmbootstrapv1alpha3.KubeadmConfigTemplate{}
+	if ok, err := utilconversion.UnmarshalData(src, restored); err != nil || !ok {
+		return err
+	}
+
+	dst.Spec.Template.Spec.Ignition = restored.Spec.Template.Spec.Ignition
+
+	return nil
 }
 
 // ConvertFrom converts from the KubeadmConfigTemplate Hub version (v1alpha3) to this version.
 func (dst *KubeadmConfigTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 	src := srcRaw.(*kubeadmbootstrapv1alpha3.KubeadmConfigTemplate)
-	return Convert_v1alpha3_KubeadmConfigTemplate_To_v1alpha2_KubeadmConfigTemplate(src, dst, nil)
+	if err := Convert_v1alpha3_KubeadmConfigTemplate_To_v1alpha2_KubeadmConfigTemplate(src, dst, nil); err != nil {
+		return err
+	}
+
+	// Preserve Hub data on down-conversion except for metadata.
+	if err := utilconversion.MarshalData(src, dst); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ConvertTo converts this KubeadmConfigTemplateList to the Hub version (v1alpha3).
